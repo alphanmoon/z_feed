@@ -1,4 +1,4 @@
-# all prints() are used in console testing, comment while in production   
+# all prints() are used in console testing, delete/comment while in production   
 
 import feedparser, nltk, tweepy, json, time
 from pyshorteners import Shortener
