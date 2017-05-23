@@ -1,5 +1,5 @@
 # z_feed
-Just another tweeting python bot with hashtags inserting machine
+Just another tweeting python bot with hashtags inserting smart machine
 
 It 
 * reads choosen news feeds, 
