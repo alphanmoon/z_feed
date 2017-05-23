@@ -7,8 +7,12 @@ It
 * sets keywords in titles by spoting NOUNs
 * inserts hashtags afore keywords
 * builds posts and tweets 'em
-* waits for fresh news (used ones are packed in json) 
+* waits for fresh news (used news links are packed in json) 
 
 That's all.
 
+RoadMap:
 
+*
+*
+*
