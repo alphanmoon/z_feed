@@ -1,7 +1,7 @@
 # z_feed
 Just another tweeting python bot with hashtags inserting smart machine
 
-It 
+
 * reads choosen news feeds, 
 * makes title parsing,
 * sets keywords in titles by spoting NOUNs
