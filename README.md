@@ -17,3 +17,4 @@ RoadMap:
 * discern and concatenate selected tags in more 'popular' one e.g #black += #hole > #blackhole 
 * start new json if len([used_links]) > N
 * tweet by schedule using tweets depot 
+* hot tags monitoring
