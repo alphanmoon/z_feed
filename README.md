@@ -13,6 +13,6 @@ That's all.
 
 RoadMap:
 
-*
-*
-*
+* cut tweets if > 140
+* dicsern and concatenate selected tags in more 'popular' one e.g #black += #hole > #blackhole 
+* 
