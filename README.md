@@ -7,7 +7,7 @@ Just another tweeting python bot with hashtags inserting smart machine
 * sets keywords in titles by spoting NOUNs
 * inserts hashtags afore keywords
 * builds posts and tweets 'em
-* waits for next news
+* waits for next news coming 
 
 That's all.
 
