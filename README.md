@@ -2,12 +2,12 @@
 Just another tweeting python bot with hashtags inserting smart machine
 
 
-* reads choosen news feeds, 
+* reads news feeds, 
 * makes title parsing,
 * sets keywords in titles by spoting NOUNs
 * inserts hashtags afore keywords
 * builds posts and tweets 'em
-* waits for fresh news (used news links are packed in json) 
+* waits for next news
 
 That's all.
 
@@ -18,4 +18,5 @@ RoadMap:
 * start new json if len([used_links]) > N
 * tweet by schedule using tweets depot 
 * hot tags monitoring
-* randomize rolling tweets by source via json depo
+* DONE: randomize rolling tweets by source 
+* DONE: randomize tweeting time step
