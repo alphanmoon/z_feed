@@ -59,7 +59,7 @@ while True:
 
                 # Shortening url
                 while True:
-                    api_key = 'AIzaSyCZfjCR6iSq6lfCsYCkNqeSBzChhuM9iKY'
+                    api_key = 'api_key'
                     shortener = Shortener('Google', api_key=api_key)
                     short_link = shortener.short(url)
                     if short_link:
