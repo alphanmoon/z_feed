@@ -6,7 +6,7 @@ Just another tweeting python bot with hashtags inserting smart machine
 * makes title parsing,
 * sets keywords in titles by spoting NOUNs
 * inserts hashtags afore keywords
-* builds posts and tweets 'em
+* builds posts and tweets
 * waits for next news coming 
 
 That's all.
@@ -20,3 +20,9 @@ RoadMap:
 * hot tags monitoring
 * DONE: randomize rolling tweets by source 
 * DONE: randomize tweeting time step
+* make DB: 
+tag: post 
+source: post
+time/date: source
+
+* add fixed tags to specific sources
