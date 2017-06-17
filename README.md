@@ -20,7 +20,7 @@ RoadMap:
 * hot tags monitoring
 * DONE: randomize rolling tweets by source 
 * DONE: randomize tweeting time step
-* make DB: 
+DONE: make DB: 
 tag: post 
 source: post
 time/date: source
