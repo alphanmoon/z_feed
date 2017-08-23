@@ -1,116 +1,227 @@
-## All prints() are for console testing, delete/comment while in production 
-
-import feedparser, nltk, tweepy, json, random, time
+import feedparser, nltk, random, time, sqlite3, tweepy, shutil, os
+from datetime import datetime
 from pyshorteners import Shortener
+from pyshorteners.exceptions import UnknownShortenerException, ShorteningErrorException, ExpandingErrorException
+from requests.exceptions import Timeout, ReadTimeout
+from z_secrets import CONSUMER_KEY, CONSUMER_SECRET, ACCESS_KEY, ACCESS_SECRET, api_key, PATH2DB, PATH2DB_BCKUP
 
-#Erasing [used links] in json for console testing, comment if no need
-##used_links = []
-##with open(used_file, 'w') as used:
-##    json.dump(used_links, used)
 
-check = ''
+check = []
 
-#Parsing a news title by iterating news feeds
+reload_count = 0
+
+zb = sqlite3.connect(PATH2DB)
+c = zb.cursor()
+
+# Backup DB after n reloads of feeds list
+def backup_db():
+    shutil.copyfile(PATH2DB, PATH2DB_BCKUP)
+    print('db backed')
+
+def parsefeed(select_feed):
+        try:
+            d1 = feedparser.parse(select_feed)
+            return d1
+        except:
+            return False
+
+
+def tagging():
+    # Inserting hashtags in title nouns using NLTK;  ******tag magic******
+    toks = nltk.word_tokenize(post1)
+    tags = nltk.pos_tag(toks)
+    # make list from tuples
+    tags_list = [list(elem) for elem in tags]
+    for t in tags_list:
+        if t[1] in ['NN', 'NNP']:
+            t[0] = '#' + t[0]
+        t[1] = ''
+    return tags_list
+
+
+# Def func for adding data to DB
+def data_entry(zb):
+    tstamp = datetime.now()
+    c.execute("insert into zbase values(?, ?, ?, ?)", (tstamp, select_feed, post1, url))
+    zb.commit()
+    print('data OK')
+
+
+def shortening(url):
+        try:
+            shortener = Shortener('Google', api_key=api_key)
+            short_link = shortener.short(url)
+            return short_link
+        except UnknownShortenerException:
+            time.sleep(U_SLEEP)
+            return False
+        except ShorteningErrorException:
+            time.sleep(U_SLEEP)
+            return False
+        except ExpandingErrorException:
+            time.sleep(U_SLEEP)
+            return False
+        except ReadTimeout:
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', '', 'timeout'))
+            zb.commit()
+            time.sleep(U_SLEEP)
+            return False
+
+
+def tweeting():
+        try:
+            auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
+            auth.set_access_token(ACCESS_KEY, ACCESS_SECRET)
+            api = tweepy.API(auth)
+            api.update_status(post3)
+            return True
+
+        except tweepy.TweepError:
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', 'tweep err', ''))
+            zb.commit()
+            return False
+
+
+def checkfeeds(check, select_feed):
+    # Preventing frequent tweets from hyperactive feeds/sources in n runs using var S_FACTOR from z_tuning module
+    if len(check) > S_FACTOR:
+        check = []
+        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", (datetime.now(), '', '', '', ''))
+        zb.commit()
+        return check
+    else:
+        c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
+        source = c.fetchall()
+        check.append(source)
+        return check
+
+
 while True:
+    try:
+        from z_tuning import S_FACTOR, U_SLEEP, T_SLEEP, TIME_MIN, TIME_MAX, RELOADS_N
 
-    used_file = 'used_links_list_test.json'
-    
-    feed = ['https://foo.bar.foo.bar',
-        'https://foo.bar.foo.bar',
-        'https://foo.bar.foo.bar',
-        ]
-    
-    # reloading feed list
-    feed_run = feed
-    
-    while feed_run:
-        # Randomly selecting then parsing feed
-        select_feed = random.choice(feed_run)
-        
-        # Preventing series of tweets from the same source
-        if select_feed == check:
-            time.sleep(5)
-            break
-         
-        d = feedparser.parse(select_feed)
+        # reloading feeds list from DB
+        c.execute('select FEED from zfeeds')
+        feed_run = list(sum(c.fetchall(), ()))
 
-        # Removing selected feed from actual run list
-        feed_run.remove(select_feed)
-        
-        n_titles = len(d['entries'])  # COUNTING TITLES IN FEED
-        
-        # Iterating titles till a new one occurs, if yes - tweeting
-        for i in range(n_titles):
-            
-            #Parsing a link from title                    
-            url = d.entries[i].link  
-            
-            # Loading json with used links
-            with open(used_file) as used:
-                used_links = json.load(used)
-            
-            if url not in used_links:
+        # Write to db-log
+        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', datetime.now(), '', ''))
+        zb.commit()
 
-                # Parsing title        
-                post1 = d.entries[i].title
-                    
-                # Inserting hashtags in title nouns;  ******tag magic******
-                toks = nltk.word_tokenize(post1)
-                tags = nltk.pos_tag(toks)
-                # 1stly make list from tuples
-                tags_list = [list(elem) for elem in tags]           
-                for t in tags_list:
-                    if t[1] in ['NN', 'NNP']:                    
-                        t[0] = '#' + t[0]
-                    t[1] = ''
-                   
-                post2 = ' '.join([''.join(elem) for elem in tags_list])
+        # Backup DB after n feedsreload
+        # reload_count += 1
+        # print(reload_count)
+        #
+        # if reload_count > RELOADS_N:
+        #     backup_db()
+        #     reload_count = 0
 
-                while True:
-                    try:
-                        api_key = 'YOUR_API_KEY'
-                        shortener = Shortener('Google', api_key=api_key)
-                        short_link = shortener.short(url)
-                        if short_link:
-                            break
-                    except:               
-                        time.sleep(30)
+        while feed_run:
+            # Randomly selecting then parsing a feed
+            select_feed = random.choice(feed_run)
 
-                #Building final post  
-                post3 = post2 + ' ' + short_link
-                if 139 > len(post3) > 10:
+            reload_count += 1
+            print(reload_count)
 
-                    rsleep = random.randint(100,130)                    
-                    #print('post is built, waiting %s sec' % rsleep)
-                    time.sleep(rsleep)
-                                      
-                    #Tweeting
-                    while True:                       
-                        try:
-                            CONSUMER_KEY = 'YOUR_KEY'
-                            CONSUMER_SECRET = 'CONSUMER_SECRET'
-                            ACCESS_KEY = ' ACCESS_KEY'
-                            ACCESS_SECRET = 'ACCESS_SECRET'
-                            auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
-                            auth.set_access_token(ACCESS_KEY, ACCESS_SECRET)
-                            api = tweepy.API(auth)
-                            tweeted = api.update_status(post3)
-                            if tweeted:
-                                #print('tweeted! %s from %s' % (post3, select_feed))                        
-                                break
-                        except:
-                            #print('tweepy error')
-                            time.sleep(1000)
-                            
-                    # Saving used links in json
-                    with open(used_file, 'w') as used:
-                        used_links.append(url)
-                        json.dump(used_links, used)
-                        check = select_feed
-                        #print('dump is OK')                        
+            if reload_count > RELOADS_N:
+                backup_db()
+                reload_count = 0
+
+            d = parsefeed(select_feed)
+
+            if d is False:
+                break
+
+            # # Removing selected feed from actual run list
+            feed_run.remove(select_feed)
+            n_titles = len(d['entries'])  # Counting titles in feed
+
+            # Iterating titles in a feed till a new one occurs, if yes - tweeting
+            for i in range(n_titles):
+
+                # Parsing a link from title
+                url = d.entries[i].link
+                c.execute('select LINK from zbase')
+                used = c.fetchall()
+                used_links = [item for sublist in used for item in sublist]
+
+                if url not in used_links:
+                    # Preventing frequent tweets from the most active feeds
+                    c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
+                    source = c.fetchall()
+                    if source in check:
+                        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', datetime.now(), '', '', ''))
+                        zb.commit()
                         break
-                                
-    #print('reloading feed list in n sec for the next random run')
-    time.sleep(30)
 
+                    # Parsing title from feed
+                    post1 = d.entries[i].title
 
+                    # Make post with tagged NOUNS using tagging()
+                    post2 = ' '.join([''.join(elem) for elem in tagging()])
+
+                    short_link = shortening(url)
+                    if short_link:
+                        pass
+                    if short_link is False:
+                        break
+
+                    # Building final post
+                    post3 = post2 + ' ' + short_link
+
+                    # Tweeting
+                    if 139 > len(post3) > 10:
+
+                        tweeted = tweeting()
+                        if tweeted:
+                            pass
+                        if tweeted is False:
+                            time.sleep(T_SLEEP)
+                            for n in range(5):
+                                tweeted2 = tweeting()
+                                time.sleep(T_SLEEP)
+                                if tweeted2:
+                                    break
+                            if tweeted2 is False:
+                                break
+
+                        check = checkfeeds(check, select_feed)
+                        print(check)
+
+                        data_entry(zb)
+
+                        rsleep = random.randint(TIME_MIN, TIME_MAX)
+                        time.sleep(rsleep)
+                        break
+
+                    elif len(post3) > 139:
+                        post3 = post2[:115] + ".." + short_link
+
+                        tweeted = tweeting()
+                        if tweeted:
+                            pass
+                        if tweeted is False:
+                            time.sleep(T_SLEEP)
+                            for n in range(5):
+                                tweeted2 = tweeting()
+                                time.sleep(T_SLEEP)
+                                if tweeted2:
+                                    break
+                            if tweeted2 is False:
+                                break
+
+                        check = checkfeeds(check, select_feed)
+                        print(check)
+
+                        data_entry(zb)
+
+                        rsleep = random.randint(TIME_MIN, TIME_MAX)
+                        time.sleep(rsleep)
+                        break
+
+    except Exception as e:
+        f = open('zdb_log', 'a')
+        f.write('{0} {1}\n'.format(str(datetime.now()), str(e)))
+        f.close()
+        print('err put in log')
+        time.sleep(3)
