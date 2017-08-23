@@ -119,10 +119,10 @@ while True:
         while feed_run:
             # Randomly selecting then parsing a feed
             select_feed = random.choice(feed_run)
-
+            
+            # Backup DB after n feedsreload
             reload_count += 1
             print(reload_count)
-
             if reload_count > RELOADS_N:
                 backup_db()
                 reload_count = 0
