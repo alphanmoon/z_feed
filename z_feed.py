@@ -173,15 +173,7 @@ while True:
                         tweeted = tweeting(post3, T_SLEEP)
 
                         if tweeted is False:
-                            break
-                            # time.sleep(T_SLEEP)
-                            # for n in range(5):
-                            #     tweeted2 = tweeting(post3)
-                            #     time.sleep(T_SLEEP)
-                            #     if tweeted2:
-                            #         break
-                            # if tweeted2 is False:
-                            #     break
+                            break                            
 
                         check = checkfeeds(check, select_feed)
                         print(check)
@@ -198,15 +190,7 @@ while True:
                         tweeted = tweeting(post3, T_SLEEP)
 
                         if tweeted is False:
-                            break
-                            # time.sleep(T_SLEEP)
-                            # for n in range(5):
-                            #     tweeted2 = tweeting(post3)
-                            #     time.sleep(T_SLEEP)
-                            #     if tweeted2:
-                            #         break
-                            # if tweeted2 is False:
-                            #     break
+                            break                          
 
                         check = checkfeeds(check, select_feed)
                         print(check)
