@@ -61,14 +61,15 @@ def shortening(url):
         except ExpandingErrorException:
             time.sleep(U_SLEEP)
             return False
-        except ReadTimeout:
-            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', '', 'timeout'))
+        except ReadTimeout as e:
+            e1 = str(e)
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', '', e1))
             zb.commit()
             time.sleep(U_SLEEP)
             return False
 
 
-def tweeting():
+def tweeting(post3, T_SLEEP):
         try:
             auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
             auth.set_access_token(ACCESS_KEY, ACCESS_SECRET)
@@ -76,9 +77,11 @@ def tweeting():
             api.update_status(post3)
             return True
 
-        except tweepy.TweepError:
-            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', 'tweep err', ''))
+        except tweepy.TweepError as e:
+            e1 = str(e)
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', e1, ''))
             zb.commit()
+            time.sleep(T_SLEEP)
             return False
 
 
@@ -109,23 +112,16 @@ while True:
         zb.commit()
 
         # Backup DB after n feedsreload
-        # reload_count += 1
-        # print(reload_count)
-        #
-        # if reload_count > RELOADS_N:
-        #     backup_db()
-        #     reload_count = 0
+        reload_count += 1
+        print(reload_count)
+
+        if reload_count > RELOADS_N:
+            backup_db()
+            reload_count = 0
 
         while feed_run:
             # Randomly selecting then parsing a feed
             select_feed = random.choice(feed_run)
-            
-            # Backup DB after n feedsreload
-            reload_count += 1
-            print(reload_count)
-            if reload_count > RELOADS_N:
-                backup_db()
-                reload_count = 0
 
             d = parsefeed(select_feed)
 
@@ -134,7 +130,9 @@ while True:
 
             # # Removing selected feed from actual run list
             feed_run.remove(select_feed)
-            n_titles = len(d['entries'])  # Counting titles in feed
+
+            # Counting titles in feed
+            n_titles = len(d['entries'])
 
             # Iterating titles in a feed till a new one occurs, if yes - tweeting
             for i in range(n_titles):
@@ -156,13 +154,13 @@ while True:
 
                     # Parsing title from feed
                     post1 = d.entries[i].title
+                    print(select_feed, post1)
 
                     # Make post with tagged NOUNS using tagging()
                     post2 = ' '.join([''.join(elem) for elem in tagging()])
 
                     short_link = shortening(url)
-                    if short_link:
-                        pass
+
                     if short_link is False:
                         break
 
@@ -172,18 +170,18 @@ while True:
                     # Tweeting
                     if 139 > len(post3) > 10:
 
-                        tweeted = tweeting()
-                        if tweeted:
-                            pass
+                        tweeted = tweeting(post3, T_SLEEP)
+
                         if tweeted is False:
-                            time.sleep(T_SLEEP)
-                            for n in range(5):
-                                tweeted2 = tweeting()
-                                time.sleep(T_SLEEP)
-                                if tweeted2:
-                                    break
-                            if tweeted2 is False:
-                                break
+                            break
+                            # time.sleep(T_SLEEP)
+                            # for n in range(5):
+                            #     tweeted2 = tweeting(post3)
+                            #     time.sleep(T_SLEEP)
+                            #     if tweeted2:
+                            #         break
+                            # if tweeted2 is False:
+                            #     break
 
                         check = checkfeeds(check, select_feed)
                         print(check)
@@ -197,18 +195,18 @@ while True:
                     elif len(post3) > 139:
                         post3 = post2[:115] + ".." + short_link
 
-                        tweeted = tweeting()
-                        if tweeted:
-                            pass
+                        tweeted = tweeting(post3, T_SLEEP)
+
                         if tweeted is False:
-                            time.sleep(T_SLEEP)
-                            for n in range(5):
-                                tweeted2 = tweeting()
-                                time.sleep(T_SLEEP)
-                                if tweeted2:
-                                    break
-                            if tweeted2 is False:
-                                break
+                            break
+                            # time.sleep(T_SLEEP)
+                            # for n in range(5):
+                            #     tweeted2 = tweeting(post3)
+                            #     time.sleep(T_SLEEP)
+                            #     if tweeted2:
+                            #         break
+                            # if tweeted2 is False:
+                            #     break
 
                         check = checkfeeds(check, select_feed)
                         print(check)
