@@ -52,24 +52,34 @@ def shortening(url):
             shortener = Shortener('Google', api_key=api_key)
             short_link = shortener.short(url)
             return short_link
-        except UnknownShortenerException:
-            time.sleep(U_SLEEP)
+        except UnknownShortenerException as e:
+            e1 = str(e)
+            dt = str(datetime.now())
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, '', '', e1, '', url))
+            zb.commit()
             return False
-        except ShorteningErrorException:
-            time.sleep(U_SLEEP)
+        except ShorteningErrorException as e:
+            e1 = str(e)
+            dt = str(datetime.now())
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, '', '', e1, '', url))
+            zb.commit()
             return False
-        except ExpandingErrorException:
-            time.sleep(U_SLEEP)
+        except ExpandingErrorException as e:
+            e1 = str(e)
+            dt = str(datetime.now())
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, '', '', e1, '', url))
+            zb.commit()
             return False
         except ReadTimeout as e:
             e1 = str(e)
-            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', '', e1))
+            print(e1)
+            dt = str(datetime.now())
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, '', '', e1, '', url))
             zb.commit()
-            time.sleep(U_SLEEP)
             return False
 
 
-def tweeting(post3, T_SLEEP):
+def tweeting(post3, select_feed, T_SLEEP):
         try:
             auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
             auth.set_access_token(ACCESS_KEY, ACCESS_SECRET)
@@ -79,9 +89,9 @@ def tweeting(post3, T_SLEEP):
 
         except tweepy.TweepError as e:
             e1 = str(e)
-            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', '', e1, ''))
+            dt = str(datetime.now())
+            c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, '', e1, '', post3, select_feed))
             zb.commit()
-            time.sleep(T_SLEEP)
             return False
 
 
@@ -89,7 +99,7 @@ def checkfeeds(check, select_feed):
     # Preventing frequent tweets from hyperactive feeds/sources in n runs using var S_FACTOR from z_tuning module
     if len(check) > S_FACTOR:
         check = []
-        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", (datetime.now(), '', '', '', ''))
+        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (datetime.now(), 'CHECK RELOAD', '', '', '', ''))
         zb.commit()
         return check
     else:
@@ -108,7 +118,8 @@ while True:
         feed_run = list(sum(c.fetchall(), ()))
 
         # Write to db-log
-        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', '', datetime.now(), '', ''))
+        dt = datetime.now()
+        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, 'FEEDS RELOAD', '',  '', '', ''))
         zb.commit()
 
         # Backup DB after n feedsreload
@@ -148,7 +159,8 @@ while True:
                     c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
                     source = c.fetchall()
                     if source in check:
-                        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?)", ('', datetime.now(), '', '', ''))
+                        dt = datetime.now()
+                        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, 'FEED CHANGE', '', '', '', ''))
                         zb.commit()
                         break
 
@@ -162,6 +174,7 @@ while True:
                     short_link = shortening(url)
 
                     if short_link is False:
+                        time.sleep(U_SLEEP)
                         break
 
                     # Building final post
@@ -170,13 +183,22 @@ while True:
                     # Tweeting
                     if 139 > len(post3) > 10:
 
-                        tweeted = tweeting(post3, T_SLEEP)
+                        tweeted = tweeting(post3, select_feed, T_SLEEP)
 
                         if tweeted is False:
-                            break                            
+                            time.sleep(T_SLEEP)
+                            break
+                            # time.sleep(T_SLEEP)
+                            # for n in range(5):
+                            #     tweeted2 = tweeting(post3)
+                            #     time.sleep(T_SLEEP)
+                            #     if tweeted2:
+                            #         break
+                            # if tweeted2 is False:
+                            #     break
 
                         check = checkfeeds(check, select_feed)
-                        print(check)
+                        print(len(check))
 
                         data_entry(zb)
 
@@ -187,13 +209,21 @@ while True:
                     elif len(post3) > 139:
                         post3 = post2[:115] + ".." + short_link
 
-                        tweeted = tweeting(post3, T_SLEEP)
+                        tweeted = tweeting(post3, select_feed, T_SLEEP)
 
                         if tweeted is False:
-                            break                          
+                            break
+                            # time.sleep(T_SLEEP)
+                            # for n in range(5):
+                            #     tweeted2 = tweeting(post3)
+                            #     time.sleep(T_SLEEP)
+                            #     if tweeted2:
+                            #         break
+                            # if tweeted2 is False:
+                            #     break
 
                         check = checkfeeds(check, select_feed)
-                        print(check)
+                        print(len(check))
 
                         data_entry(zb)
 
