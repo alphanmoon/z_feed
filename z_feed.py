@@ -202,6 +202,7 @@ while True:
                         tweeted = tweeting(post3, select_feed, T_SLEEP)
 
                         if tweeted is False:
+                            time.sleep(T_SLEEP)
                             break
                             # time.sleep(T_SLEEP)
                             # for n in range(5):
