@@ -6,10 +6,6 @@ from requests.exceptions import Timeout, ReadTimeout
 from z_secrets import CONSUMER_KEY, CONSUMER_SECRET, ACCESS_KEY, ACCESS_SECRET, api_key, PATH2DB, PATH2DB_BCKUP
 
 
-check = []
-
-reload_count = 0
-
 zb = sqlite3.connect(PATH2DB)
 c = zb.cursor()
 
@@ -22,7 +18,7 @@ def parsefeed(select_feed):
         try:
             d1 = feedparser.parse(select_feed)
             return d1
-        except:
+        except Exception:
             return False
 
 
@@ -95,40 +91,28 @@ def tweeting(post3, select_feed, T_SLEEP):
             return False
 
 
-def checkfeeds(check, select_feed):
-    # Preventing frequent tweets from hyperactive feeds/sources in n runs using var S_FACTOR from z_tuning module
-    if len(check) > S_FACTOR:
-        check = []
-        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (datetime.now(), 'CHECK RELOAD', '', '', '', ''))
-        zb.commit()
-        return check
-    else:
-        c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
-        source = c.fetchall()
-        check.append(source)
-        return check
-
-
 while True:
     try:
-        from z_tuning import S_FACTOR, U_SLEEP, T_SLEEP, TIME_MIN, TIME_MAX, RELOADS_N
+        from z_tuning import U_SLEEP, T_SLEEP, TIME_MIN, TIME_MAX
+
+        check_source = []
+
+        backup_db()
 
         # reloading feeds list from DB
         c.execute('select FEED from zfeeds')
         feed_run = list(sum(c.fetchall(), ()))
 
-        # Write to db-log
+        # Write reload action to db-log
         dt = datetime.now()
         c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, 'FEEDS RELOAD', '',  '', '', ''))
         zb.commit()
 
-        # Backup DB after n feedsreload
-        reload_count += 1
-        print(reload_count)
+        print('reload: ')
 
-        if reload_count > RELOADS_N:
-            backup_db()
-            reload_count = 0
+        # Building list of all unique sources
+        c.execute("SELECT DISTINCT SOURCE from zfeeds")
+        source = list(sum(c.fetchall(), ()))
 
         while feed_run:
             # Randomly selecting then parsing a feed
@@ -136,33 +120,38 @@ while True:
 
             d = parsefeed(select_feed)
 
-            if d is False:
-                break
-
             # # Removing selected feed from actual run list
             feed_run.remove(select_feed)
 
             # Counting titles in feed
             n_titles = len(d['entries'])
 
+            # Defining a source of the feed
+            c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
+            select_source = list(sum(c.fetchall(), ()))
+            select_source2 = " ".join(select_source)
+
             # Iterating titles in a feed till a new one occurs, if yes - tweeting
             for i in range(n_titles):
+                print(i, n_titles, select_feed)
+                time.sleep(2)
+
+                # Preventing frequent tweets from the most active feeds
+                if select_source2 in check_source:
+                    print('changing source')
+                    dt = datetime.now()
+                    # c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, 'SOURCE CHANGE', '', '', '', ''))
+                    zb.commit()
+                    break
 
                 # Parsing a link from title
                 url = d.entries[i].link
+
                 c.execute('select LINK from zbase')
                 used = c.fetchall()
                 used_links = [item for sublist in used for item in sublist]
 
                 if url not in used_links:
-                    # Preventing frequent tweets from the most active feeds
-                    c.execute("select SOURCE from zfeeds where FEED = '%s'" % select_feed)
-                    source = c.fetchall()
-                    if source in check:
-                        dt = datetime.now()
-                        c.execute("insert into zfeed_log values(?, ?, ?, ?, ?, ?)", (dt, 'FEED CHANGE', '', '', '', ''))
-                        zb.commit()
-                        break
 
                     # Parsing title from feed
                     post1 = d.entries[i].title
@@ -179,6 +168,7 @@ while True:
 
                     # Building final post
                     post3 = post2 + ' ' + short_link
+                    print(post3, select_source2, select_feed)
 
                     # Tweeting
                     if 139 > len(post3) > 10:
@@ -188,19 +178,19 @@ while True:
                         if tweeted is False:
                             time.sleep(T_SLEEP)
                             break
-                            # time.sleep(T_SLEEP)
-                            # for n in range(5):
-                            #     tweeted2 = tweeting(post3)
-                            #     time.sleep(T_SLEEP)
-                            #     if tweeted2:
-                            #         break
-                            # if tweeted2 is False:
-                            #     break
-
-                        check = checkfeeds(check, select_feed)
-                        print(len(check))
+                        #     # time.sleep(T_SLEEP)
+                        #     # for n in range(5):
+                        #     #     tweeted2 = tweeting(post3)
+                        #     #     time.sleep(T_SLEEP)
+                        #     #     if tweeted2:
+                        #     #         break
+                        #     # if tweeted2 is False:
+                        #     #     break
 
                         data_entry(zb)
+
+                        check_source.append(select_source2)
+                        print('check source 1 : ', len(check_source))
 
                         rsleep = random.randint(TIME_MIN, TIME_MAX)
                         time.sleep(rsleep)
@@ -222,10 +212,10 @@ while True:
                             # if tweeted2 is False:
                             #     break
 
-                        check = checkfeeds(check, select_feed)
-                        print(len(check))
-
                         data_entry(zb)
+
+                        check_source.append(select_source2)
+                        print('check source 2 : ', len(check_source))
 
                         rsleep = random.randint(TIME_MIN, TIME_MAX)
                         time.sleep(rsleep)
